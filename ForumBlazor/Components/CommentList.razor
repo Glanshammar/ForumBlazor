@@ -1,5 +1,67 @@
-﻿<h3>CommentList</h3>
+﻿@using ForumBlazor.Models
+@using Microsoft.AspNetCore.Components.Authorization;
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+<h4>Comments</h4>
+
+@if (Comments == null || !Comments.Any())
+{
+    <p>No comments yet.</p>
+}
+else
+{
+    <ul class="list-unstyled">
+        @foreach (var comment in Comments)
+        {
+            <li @key="comment.Id" class="mb-3">
+                <div class="card">
+                    <div class="card-body">
+                        <p class="card-text">@comment.Content</p>
+                        <p class="card-text"><small class="text-muted">Posted by @comment.AuthorId on @comment.CreatedAt.ToString("yyyy-MM-dd HH:mm")</small></p>
+                        
+                        @if (AuthorOrAdminCheck.TryGetValue(comment.Id, out bool isAuthorOrAdmin) && isAuthorOrAdmin)
+                        {
+                            <button class="btn btn-danger btn-sm" @onclick="() => DeleteComment(comment.Id)">Delete</button>
+                        }
+                    </div>
+                </div>
+            </li>
+        }
+    </ul>
+}
 
 @code {
+    [Parameter]
+    public List<Comment> Comments { get; set; }
+
+    [Parameter]
+    public EventCallback<int> OnDeleteComment { get; set; }
     
+    private Dictionary<int, bool> AuthorOrAdminCheck = new Dictionary<int, bool>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Comments != null)
+        {
+            foreach (var comment in Comments)
+            {
+                AuthorOrAdminCheck[comment.Id] = await IsAuthorOrAdmin(comment.AuthorId);
+            }
+        }
+        await base.OnInitializedAsync();
+    }
+
+    private async Task<bool> IsAuthorOrAdmin(string authorId)
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        return user.Identity.IsAuthenticated && 
+               (user.Identity.Name == authorId || user.IsInRole("Admin"));
+    }
+
+    private async Task DeleteComment(int commentId)
+    {
+        await OnDeleteComment.InvokeAsync(commentId);
+    }
 }

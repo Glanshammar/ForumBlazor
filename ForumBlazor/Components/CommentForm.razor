@@ -1,5 +1,83 @@
-﻿<h3>CommentForm</h3>
+﻿@using ForumBlazor.Models
+@using Microsoft.AspNetCore.Components.Authorization
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject NavigationManager NavigationManager
+
+<h4>Add a Comment</h4>
+
+@if (isAuthenticated)
+{
+    <EditForm Model="@newComment" OnValidSubmit="HandleValidSubmit">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+
+        <div class="form-group">
+            <label for="content">Comment:</label>
+            <InputTextArea id="content" class="form-control" @bind-Value="newComment.Content" rows="3" />
+            <ValidationMessage For="@(() => newComment.Content)" />
+        </div>
+
+        <button type="submit" class="btn btn-primary mt-2">Submit Comment</button>
+    </EditForm>
+}
+else
+{
+    <div class="alert alert-warning" role="alert">
+        You must be logged in to comment. <a href="/login" class="alert-link">Log in</a> or <a href="/register" class="alert-link">register</a> to continue.
+    </div>
+}
+
+@if (!string.IsNullOrEmpty(errorMessage))
+{
+    <div class="alert alert-danger mt-3" role="alert">
+        @errorMessage
+    </div>
+}
 
 @code {
-    
+    private Comment newComment = new Comment();
+    private bool isAuthenticated = false;
+    private string errorMessage = string.Empty;
+
+    [Parameter]
+    public int PostId { get; set; }
+
+    [Parameter]
+    public EventCallback<Comment> OnCommentSubmit { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        isAuthenticated = authState.User.Identity.IsAuthenticated;
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        if (user.Identity.IsAuthenticated)
+        {
+            try
+            {
+                newComment.AuthorId = user.Identity.Name;
+                newComment.PostId = PostId;
+                newComment.CreatedAt = DateTime.UtcNow;
+
+                await OnCommentSubmit.InvokeAsync(newComment);
+
+                newComment = new Comment();
+                errorMessage = string.Empty;
+            }
+            catch (Exception ex)
+            {
+                errorMessage = $"An error occurred while submitting your comment: {ex.Message}";
+            }
+        }
+        else
+        {
+            errorMessage = "You must be logged in to submit a comment.";
+            NavigationManager.NavigateTo("/login");
+        }
+    }
 }
