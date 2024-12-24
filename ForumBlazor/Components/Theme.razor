@@ -1,5 +1,66 @@
-﻿<h3>Theme</h3>
+﻿@namespace ForumBlazor.Components
+@inject ForumBlazor.Services.ForumState ForumState
+@inject NavigationManager NavigationManager
+
+<h3>@CurrentTheme?.Name</h3>
+
+@if (CurrentTheme == null)
+{
+    <p>Loading theme...</p>
+}
+else
+{
+    <p>@CurrentTheme.Description</p>
+    <p><small>Created on @CurrentTheme.CreatedAt.ToString("yyyy-MM-dd")</small></p>
+
+    <h4>Posts</h4>
+
+    @if (CurrentTheme.Posts == null || CurrentTheme.Posts.Count == 0)
+    {
+        <p>No posts in this theme yet.</p>
+    }
+    else
+    {
+        <ul>
+            @foreach (var post in CurrentTheme.Posts)
+            {
+                <li>
+                    <h5 @onclick="() => NavigateToPost(post.Id)" style="cursor: pointer; color: blue;">
+                        @post.Title
+                    </h5>
+                    <p>@post.Content.Substring(0, Math.Min(100, post.Content.Length))...</p>
+                    <p><small>By Author ID: @post.AuthorId on @post.CreatedAt.ToString("yyyy-MM-dd")</small></p>
+                </li>
+            }
+        </ul>
+    }
+
+    <button class="btn btn-primary mt-3" @onclick="NavigateToNewPost">Create New Post</button>
+}
 
 @code {
-    
+    [Parameter]
+    public int ThemeId { get; set; }
+
+    private ForumBlazor.Models.Theme CurrentTheme => ForumState.Themes.FirstOrDefault(t => t.Id == ThemeId);
+
+    protected override void OnInitialized()
+    {
+        ForumState.OnChange += StateHasChanged;
+    }
+
+    private void NavigateToPost(int postId)
+    {
+        NavigationManager.NavigateTo($"/post/{postId}");
+    }
+
+    private void NavigateToNewPost()
+    {
+        NavigationManager.NavigateTo($"/theme/{ThemeId}/newpost");
+    }
+
+    public void Dispose()
+    {
+        ForumState.OnChange -= StateHasChanged;
+    }
 }
